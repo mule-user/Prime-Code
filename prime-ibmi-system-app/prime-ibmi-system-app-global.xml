@@ -66,7 +66,7 @@ http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as
 			<jms:connection-factory >
 				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
 					<jms:custom-jndi-name-resolver >
-						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&trustStorePath=${jms.truststore.name}&trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
 					</jms:custom-jndi-name-resolver>
 				</jms:jndi-connection-factory>
 			</jms:connection-factory>
@@ -86,7 +86,7 @@ http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as
 			<jms:connection-factory >
 				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
 					<jms:custom-jndi-name-resolver >
-						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+						<jms:cached-jndi-name-resolver jndiProviderUrl="(${jms.broker.url})?ha=${ha.policy.enabled}&sslEnabled=true&trustStorePath=${jms.truststore.name}&trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
 					</jms:custom-jndi-name-resolver>
 				</jms:jndi-connection-factory>
 			</jms:connection-factory>
@@ -106,7 +106,7 @@ http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as
 			<jms:connection-factory >
 				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
 					<jms:custom-jndi-name-resolver >
-						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+						<jms:cached-jndi-name-resolver jndiProviderUrl="(${jms.broker.url})?ha=${ha.policy.enabled}&sslEnabled=true&trustStorePath=${jms.truststore.name}&trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
 					</jms:custom-jndi-name-resolver>
 				</jms:jndi-connection-factory>
 			</jms:connection-factory>
@@ -127,7 +127,7 @@ http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as
 			<jms:connection-factory >
 				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
 					<jms:custom-jndi-name-resolver >
-						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+						<jms:cached-jndi-name-resolver jndiProviderUrl="(${jms.broker.url})?ha=${ha.policy.enabled}&sslEnabled=true&trustStorePath=${jms.truststore.name}&trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
 					</jms:custom-jndi-name-resolver>
 				</jms:jndi-connection-factory>
 			</jms:connection-factory>
@@ -146,7 +146,7 @@ http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as
 			<jms:connection-factory >
 				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
 					<jms:custom-jndi-name-resolver >
-						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+						<jms:cached-jndi-name-resolver jndiProviderUrl="(${jms.broker.url})?ha=${ha.policy.enabled}&sslEnabled=true&trustStorePath=${jms.truststore.name}&trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
 					</jms:custom-jndi-name-resolver>
 				</jms:jndi-connection-factory>
 			</jms:connection-factory>
@@ -165,7 +165,7 @@ http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as
 			<jms:connection-factory >
 				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
 					<jms:custom-jndi-name-resolver >
-						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+						<jms:cached-jndi-name-resolver jndiProviderUrl="(${jms.broker.url})?ha=${ha.policy.enabled}&sslEnabled=true&trustStorePath=${jms.truststore.name}&trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
 					</jms:custom-jndi-name-resolver>
 				</jms:jndi-connection-factory>
 			</jms:connection-factory>
@@ -184,7 +184,7 @@ http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as
 			<jms:connection-factory >
 				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
 					<jms:custom-jndi-name-resolver >
-						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+						<jms:cached-jndi-name-resolver jndiProviderUrl="(${jms.broker.url})?ha=${ha.policy.enabled}&sslEnabled=true&trustStorePath=${jms.truststore.name}&trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
 					</jms:custom-jndi-name-resolver>
 				</jms:jndi-connection-factory>
 			</jms:connection-factory>
