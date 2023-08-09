@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:as400="http://www.mulesoft.org/schema/mule/as400"
+	xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as400/current/mule-as400.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<sub-flow name="load-lockpgmcall-subflow" doc:id="d691f24e-d334-4ddd-985e-d904d67bb7f1" >
+		<choice doc:name="Choice" doc:id="fa2e187c-e55d-4d06-b67b-2ff7f53f4c4c">
+			<when expression="#[vars.originalPayload.order.code == null]">
+				<as400:program-call-processor doc:name="calling lock program using route number" doc:id="d68992a5-ce8f-4ff1-8607-c4646fbad819" config-ref="AS400_Config_Lockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}" target="lockPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="INOUT" parmValue='#[""]' />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.route.number as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="10" usage="IN" parmValue="#['Load.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="INOUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+			</when>
+			<otherwise>
+			<as400:program-call-processor doc:name="calling lock program using order number" doc:id="fab176a3-bab3-4966-b555-d9913d0fafc6" config-ref="AS400_Config_Lockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}" target="lockPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="INOUT" parmValue="#[vars.originalPayload.order.code as Number]" />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue='#[""]' />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="10" usage="IN" parmValue="#['Load.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="stopevent-lockpgmcall-subflow" doc:id="c4de5df6-ae57-4db6-8054-2a1b85c937c2" >
+		<as400:program-call-processor doc:name="Stop Lock Program call processor" doc:id="d2d8ab2d-90dc-41b9-9fa5-78df392f961f" config-ref="AS400_Config_Lockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}" target="lockPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="INOUT" parmValue='#[""]' />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="15" usage="IN" parmValue="#['StopEvent.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="INOUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+<!-- [STUDIO:"lockStatus"]		<set-variable value='#[%dw 2.0&#10;output application/json&#10;var errorStatus = if(vars.lockPayload.Success == "N" and vars.lockPayload.Msg == "Error on CHAIN to IMSEQL9 file") "Error on Chain to IMSEQL9"&#10;else if (vars.lockPayload.Success == "N" and vars.lockPayload.Msg == "Order already Locked") "Order already locked" &#10;else if (vars.lockPayload.Success == "N" and vars.lockPayload.Msg == "Error on CHAIN to MMBHDR file") "Error on CHAIN to MMBHDR" &#10;else if (vars.lockPayload.Success == "N" and vars.lockPayload.Msg == "Error Writing Lock to MMBHDR file") "Error Writing Lock to MMBHDR" else "unknown error while call"&#10;&#45;&#45;-&#10;if (errorStatus == "Error on Chain to IMSEQL9" or errorStatus == "Order already locked" or errorStatus == "Error on CHAIN to MMBHDR" or errorStatus == "Error Writing Lock to MMBHDR file") "Error" else "Active"]' doc:name="lockStatus" doc:id="2f05ddf2-8b30-4e96-bb7f-a40aa90cfc08" variableName="lockStatus" /> [STUDIO] -->
+	</sub-flow>
+	<flow name="prime-jms-ibmi-employee-flow">
+		<jms:listener doc:name="On New Employee Message" config-ref="ArtemisMQ_JMS_Config_Employee" destination="${jms.employee.queue}"/>
+		<logger level="INFO" doc:name="Log Start" message="#[flow.name] Started"/>
+		<set-variable value="#[attributes.properties.userProperties.transactionId]" doc:name="transactionId" doc:id="8da77621-e5e7-40e0-88e5-dd2a96a26a99" variableName="transactionId"/>
+		<set-variable value="#[payload]" doc:name="originalPayload" doc:id="d753acc9-eda6-426a-bbec-5a8723fe8a32" variableName="originalPayload"/>
+		<logger level="INFO" doc:name="Log message" message="Employee event received from Artemis MQ for transactionId : #[vars.transactionId] and payload :: #[vars.originalPayload]" />
+		<set-payload value='#[output application/java&#10;---&#10;write(payload, "application/json") replace /([\n\t ])/ with "" as String]' doc:name="Set JsonPayload" doc:id="e020d664-d897-4251-b66a-a13fc6969022" />
+		<logger level="INFO" doc:name="Log message" doc:id="83ebe2a4-039e-42e0-ba82-698d697cb4d9" message="Calling the Employee program for transactionId : #[vars.transactionId] and payload :: #[vars.originalPayload]" />
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="7c3a2255-0356-46c0-b82f-aa5b3c91cabd" millisBetweenRetries="5000">
+			<try doc:name="Try" doc:id="55e78e4b-4f9b-45dc-a4d0-13bb7dd68da1">
+			<as400:program-call-processor doc:name="Employee call processor" config-ref="AS400_Config_Employee" programName="${as400.employee.program.name}" programLibrary="${as400.library.name}" target="stopPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="employeeJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+		</try>
+		</until-successful>
+		<logger level="INFO" doc:name="Log message" doc:id="b8f14bd8-8148-47a4-9e09-64351b61b1b4" message="Successfully unlocked the Employee program for transactionId : #[vars.transactionId] and message :: #[vars.originalPayload]" />
+		<logger level="INFO" doc:name="Log End" message="#[flow.name] Ended"/>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="694a4731-0b2a-4b40-bb8c-7bef7f04e997" type="AS400:CONNECTIVITY">
+				<logger level="ERROR" doc:name="Log error message" doc:id="a4cc55c3-56cb-42ce-ba6e-41e3b32289df" message="Error occured while connecting to IBM i : #[error.description] and publishing event to queue for re processing and sending email for failed transaction"/>
+				<set-variable value="#[%dw 2.0&#10;output text/plain&#10;---&#10;&quot;Error Connecting to &quot; ++ p('as400.endpoint') ++ &quot; IBM i System&quot; ++&#10;&quot;\n\t&quot;]" doc:name="emailBody" doc:id="008086e3-adb3-4997-9741-297b12bd499c" variableName="emailBody"/>
+				<jms:publish doc:name="Publish transaction to queue for re processing" doc:id="8cb8efaa-9ee7-4c3c-b4fc-8e1f2c29ea46" config-ref="ArtemisMQ_JMS_Config_Employee" destination="${jms.employee.queue}">
+					<jms:message>
+						<jms:properties><![CDATA[#[{
+	"transactionId" : vars.transactionId
+}]]]></jms:properties>
+					</jms:message>
+				</jms:publish>
+				<email:send doc:name="Send email for failed events" doc:id="fbc8fdff-181c-454b-a25e-a3293c16d1de" config-ref="Email_SMTP_Prime" toAddresses="#[p('smtp.recipients') splitBy ',']" fromAddress="${smtp.user}" subject="Error creating employee in Prime System">
+					<email:body >
+						<email:content ><![CDATA[#[vars.emailBody]]]></email:content>
+					</email:body>
+				</email:send>
+				<logger level="ERROR" doc:name="Log error message" doc:id="16d9aa44-d278-42ed-a6b6-a2fbec4173f8" message="Sccessfully published to queue and sent email for transactionId : #[vars.transactionId]"/>
+			</on-error-continue>
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="64f08fde-2e88-412d-9982-3f9cab951596" type="AS400:CONNECTION_FAILED, AS400:PROGRAM_CALL_FAILED, AS400:PROGRAM_CALL_TIMEOUT, AS400:RETRY_EXHAUSTED">
+				<logger level="ERROR" doc:name="Log error message" doc:id="3eb5738f-fc35-4822-b06b-c575587ef224" message="Error occured while calling the as400 program : #[error.description] sending the event to queue for reprocessing for transaction : #[vars.transactionId]"/>
+				<jms:publish doc:name="Publish transaction to queue for re processing" doc:id="ed81c726-6868-4509-a1ef-ddd24d40c932" config-ref="ArtemisMQ_JMS_Config_Employee" destination="${jms.employee.queue}">
+					<jms:message >
+						<jms:properties ><![CDATA[#[{
+	"transactionId" : vars.transactionId
+}]]]></jms:properties>
+					</jms:message>
+				</jms:publish>
+				<logger level="ERROR" doc:name="Log error message" doc:id="789597cb-d5b9-4087-b717-e222105254eb" message="Successfully published the event to queue for re processing"/>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="prime-jms-ibmi-stopevent-flow">
+		<jms:listener doc:name="On New Stop Event Message" config-ref="ArtemisMQ_JMS_Config_Stop_Event" destination="${jms.stopevent.queue}"/>
+		<logger level="INFO" doc:name="Log Start" message="#[flow.name] Started"/>
+		<set-variable value="#[attributes.properties.userProperties.transactionId]" doc:name="transactionId" doc:id="9eabde6a-1729-44ef-91b1-963b31a37f66" variableName="transactionId"/>
+		<set-variable value="#[payload]" doc:name="originalPayload" doc:id="67246124-33b8-4a7c-a28d-9e5abe5190b0" variableName="originalPayload"/>
+		<logger level="INFO" doc:name="Log message" message="Stop event received from Artemis MQ for transactionId : #[vars.transactionId] and payload :: #[vars.originalPayload]" />
+		<set-payload value='#[output application/java&#10;---&#10;write(payload, "application/json") replace /([\n\t ])/ with "" as String]' doc:name="Set Json Payload" doc:id="4e5dcef7-43e0-4a30-be34-6550a579a6e7" />
+		<logger level="INFO" doc:name="Log transaction" doc:id="d99ee18c-7e41-4d92-9dea-1144a7849ffe" message="Locking the program for transactionId : #[vars.transactionId] and payload : #[vars.originalPayload]"/>
+		<set-variable value="#[attributes.properties.userProperties.retryCount default 0]" doc:name="retryCount" doc:id="a915a64f-1f0e-42f7-b019-c6b74b1d4f8f" variableName="retryCount"/>
+<try doc:name="Try" doc:id="13ff22d4-d6e3-454f-9538-f778ab498154" >
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="8c6202be-cde5-436d-a2dc-2366847e401a" millisBetweenRetries="5000">
+				<try doc:name="Try" doc:id="e051679b-981f-4d2e-902a-4e18be3c83fb" >
+					<flow-ref doc:name="stopEvent-lockpgm-subflow" doc:id="a034b954-f644-4cf4-99b8-f78cc569f96d" name="stopevent-lockpgmcall-subflow"/>
+					<choice doc:name="Choice" doc:id="ae04d9d7-dcf2-451b-aa08-98ac82df8379" >
+						<when expression='#[(vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Order already Locked") &#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Error on CHAIN to IMSEQL9 file")&#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Error on CHAIN to MMBHDR file")&#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Error Writing Lock to MMBHDR file")]'>
+							<logger level="INFO" doc:name="Log message" doc:id="09380189-5a67-4fc1-8f56-14f84eb002e4" message="need to re-process the failed event for transactionId :#[vars.transactionId] and payload : #[vars.originalPayload]"/>
+							<choice doc:name="Choice" doc:id="af859aea-1b35-45ca-b47f-c7f87c59587b" >
+								<when expression='#[vars.lockPayload.Msg == "Order already Locked"]'>
+									<raise-error doc:name="Raise error for order lock" doc:id="02942bbd-057f-434d-9922-557eb7d1bff3" type="IBMI:ORDERLOCK" description="Order already Locked"/>
+								</when>
+								<when expression='#[vars.lockPayload.Msg == "Error on CHAIN to IMSEQL9 file"]'>
+									<raise-error doc:name="Raise error chain to Imseql file" doc:id="cc0536ce-69cc-4d1a-a1bc-9bf4fb4000d4" type="IBMI:ERROR ON CHAIN IMSEQL9 FILE" description="Error on CHAIN to IMSEQL9 file"/>
+								</when>
+								<when expression='#[vars.lockPayload.Msg == "Error on CHAIN to MMBHDR file"]'>
+									<raise-error doc:name="Raise error chian to mmbhdr file" doc:id="afb878b8-240e-4801-88e4-a89b527cf0d6" type="IBMI:ERROR ON CHAIN TO MMBHDR FILE" description="Error on CHAIN to MMBHDR file"/>
+								</when>
+								<when expression='#[vars.lockPayload.Msg == "Error Writing Lock to MMBHDR file"]'>
+									<raise-error doc:name="Raise error writing lock to mmbhdr file" doc:id="6f067dbd-14b8-4229-8ec6-dbc9bf605c7b" type="IBMI:ERROR WRITING LOCK TO MMBHDR FILE" description="Error Writing Lock to MMBHDR file"/>
+								</when>
+							</choice>
+						</when>
+						<when expression='#[(vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Route not found in IMSEQ file") &#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Must pass either Order or Route to Delete Lock")&#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Order not found in ORDER file")]'>
+							<choice doc:name="Choice" doc:id="373278e3-9d7f-4801-8820-018087bee474">
+								<when expression='#[vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Route not found in IMSEQ file"]'>
+								<logger level="INFO" doc:name="Log message" doc:id="2a89c10b-3a53-4a6a-b974-7f475bd4d832" message="publishng the failed event to error queue for transactionId : #[vars.transactionId]"/>
+									<jms:publish doc:name="Publish message to error queue" doc:id="a3a13218-2e6a-4377-a738-c1292055089c" config-ref="ArtemisMQ_JMS_Config_Stop_Event" destination="${jms.stopevent.error.queue}">
+					<jms:message>
+						<jms:body><![CDATA[#[vars.originalPayload]]]></jms:body>
+						<jms:properties><![CDATA[#[{
+	"transactionId" : vars.transactionId,
+	"messageId" : attributes.properties.userProperties.messageId
+}]]]></jms:properties>
+							<jms:jmsx-properties jmsxGroupID="#[attributes.properties.jmsxProperties.jmsxGroupID]" />
+					</jms:message>
+				</jms:publish>
+								</when>
+								<otherwise >
+									<logger level="INFO" doc:name="Log message" doc:id="8473fd74-387e-405c-a3b9-8aad818704f4" message="continuing processing for transactionId : #[vars.transactionId]"/>
+								</otherwise>
+							</choice>
+							<logger level="INFO" doc:name="Log message" doc:id="2c5acb4d-a1e5-4c67-82db-a9024a9f154d" message="Sending email for transacationId : #[vars.transactionId] for Stop Event Order lock with OrderNo : #[vars.lockPayload.Order] and Route : #[vars.originalPayload.routeNumber as Number] and Msg : #[vars.lockPayload.Msg]" />
+<!-- [STUDIO:"send email for failed events"]							<as400:program-call-processor doc:name="send email for failed events" doc:id="3e8d402b-9694-4cdc-8355-3fad27845a69" config-ref="AS400_Config_Stopoff" programName="${as400.send.email.program.name}" programLibrary="${as400.library.name}">
+					<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue="#[vars.lockPayload.Order]" />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="15" usage="IN" parmValue="#['StopEvent.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="INOUT" parmValue="#[vars.lockPayload.Msg]" />
+			</as400:parameters>
+				</as400:program-call-processor> [STUDIO] -->
+							<set-variable value='#[if(vars.lockPayload.Order == null or vars.lockPayload.Order == "") vars.originalPayload.routeNumber as Number&#10; else vars.lockPayload.Order]' doc:name="orderId" doc:id="0952c317-3dfc-4af2-a129-59e589507e1c" variableName="orderId"/>
+							<email:send doc:name="Send email" doc:id="20cbd577-41f3-4b87-ba1c-614085f1cb31" config-ref="Email_SMTP_Prime" toAddresses="#[p('smtp.recipients') splitBy ',']" fromAddress="${smtp.user}" subject='#["StopEvent.Json - Error LOCKING Order/Route : " ++ vars.orderId ++ " in Prime System"]'/>
+							<logger level="INFO" doc:name="Log message" doc:id="ed5cf421-8bf9-4e5e-8b93-42bf38917943" message="Successfully sent email for transacationId : #[vars.transactionId] for Stop Event"/>
+						</when>
+						<otherwise >
+							<logger level="INFO" doc:name="Log message" doc:id="124dd187-bee8-4536-959a-f4ae2a586106" message="Calling the Stop program for transactionId : #[vars.transactionId] and payload :: #[vars.originalPayload]"/>
+							<as400:program-call-processor doc:name="StopProgram call processor" config-ref="AS400_Config_Stopoff" programName="${as400.stopevent.program.name}" programLibrary="${as400.library.name}" target="stopPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="StopJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+				<logger level="INFO" doc:name="Log IBM i response" doc:id="92124a64-5962-496f-8ead-c6d5c38e42ea" message="Response from IBM i after calling the Stop program for transactionId : #[vars.transactionId] with message :: #[vars.stopPayload]" />
+				<logger level="INFO" doc:name="Log message" doc:id="b7c7535b-c840-49b9-9aee-7307fb2d6d85" message="Unlocking the Stop program after successful program call for transactionId : #[vars.transactionId]"/>
+				<as400:program-call-processor doc:name="Unlock Program call processor" doc:id="4338eab6-ea1b-4a22-a75e-a0b926be9fe8" config-ref="AS400_Config_Unlockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue='#[""]' />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="10" usage="IN" parmValue="#['Stop.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['D']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+				<logger level="INFO" doc:name="Log message" doc:id="9cf77cbc-5871-4b85-94f9-6edda5b5413b" message="Successfully unlocked the stop program for transactionId :#[vars.transactionId] and message :: #[payload]"/>
+			
+						</otherwise>
+					</choice>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="37e5644d-3e17-4c8c-a418-489b976aef7f" type="IBMI:ORDERLOCK,IBMI:ERROR ON CHAIN IMSEQL9 FILE,IBMI:ERROR ON CHAIN TO MMBHDR FILE,IBMI:ERROR WRITING LOCK TO MMBHDR FILE">
+							<logger level="ERROR" doc:name="Log message" doc:id="60d9a58a-63d4-43d3-98d3-1c1f56a6ab1f" message="Error occured on IBM i : #[error.description] and need to do retry"/>
+						</on-error-propagate>
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="480b4587-472a-404e-949c-b7b9c11e938d" type="AS400:CONNECTION_FAILED, AS400:CONNECTIVITY, AS400:PROGRAM_CALL_FAILED, AS400:PROGRAM_CALL_TIMEOUT">
+							<logger level="INFO" doc:name="Log message" doc:id="d44ca915-fd5c-44a6-8b10-8185a8dbea04" message="Error occured on IBM i : #[error.description] for transaction : #[vars.transactionId] and need to do retry" />
+						</on-error-propagate>
+					</error-handler>
+				</try>
+			</until-successful>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="ce5202ac-36b0-4df4-a2fe-e6a9ead58ea3" type="IBMI:ORDERLOCK,IBMI:ERROR ON CHAIN IMSEQL9 FILE,IBMI:ERROR ON CHAIN TO MMBHDR FILE,IBMI:ERROR WRITING LOCK TO MMBHDR FILE">
+					<logger level="INFO" doc:name="send to error queue" doc:id="a1e6b953-9089-4b8c-89b7-67681df1ba09" message="Max retries exceeded for Lock program call and sending it to error queue for transactionId : #[vars.transactionId] "/>
+					<jms:publish doc:name="Publish message to error queue" doc:id="cda94225-ddcf-44d4-b5da-8f0bc4115e67" config-ref="ArtemisMQ_JMS_Config_Stop_Event" destination="${jms.stopevent.error.queue}">
+					<jms:message>
+						<jms:body><![CDATA[#[vars.originalPayload]]]></jms:body>
+						<jms:properties><![CDATA[#[{
+	"transactionId" : vars.transactionId,
+	"messageId" : attributes.properties.userProperties.messageId
+}]]]></jms:properties>
+							<jms:jmsx-properties jmsxGroupID="#[attributes.properties.jmsxProperties.jmsxGroupID]" />
+					</jms:message>
+				</jms:publish>
+					<logger level="INFO" doc:name="Log message" doc:id="3046ab42-b8ce-4a63-857c-684433d9c1c8" message="sending email for the failed event with transactionId : #[vars.transactionId]"/>
+<!-- [STUDIO:"send email for failed events"]					<as400:program-call-processor doc:name="send email for failed events" doc:id="e8bd5b2c-99ce-45a4-b80b-3a5f3c2a7bf7" config-ref="AS400_Config_Stopoff" programName="${as400.send.email.program.name}" programLibrary="${as400.library.name}">
+					<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue="#[vars.lockPayload.Order]" />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="15" usage="IN" parmValue="#['StopEvent.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="INOUT" parmValue="#[vars.lockPayload.Msg]" />
+			</as400:parameters>
+				</as400:program-call-processor> [STUDIO] -->
+				<set-variable value='#[output&#10;application/json&#10;---&#10;if(vars.lockPayload.Order == null or vars.lockPayload.Order == "") vars.originalPayload.routeNumber as Number&#10; else vars.lockPayload.Order]' doc:name="orderId" doc:id="8a588b3d-9d36-40e6-8248-fad41bbe8234" variableName="orderId"/>
+							<set-variable value='#[%dw 2.0&#10;output text/plain&#10;---&#10;"Error LOCKING ORDER in Prime System" ++&#10;"\n" ++ &#10;"\n" ++ vars.lockPayload.Msg ++&#10;"\n\t"]' doc:name="emailBody" doc:id="49206de4-e9a9-4b41-bdb8-3663b54cedb9" variableName="emailBody"/>
+					<email:send doc:name="Send email" doc:id="d62c47d2-4280-40ad-a1e9-cf933c63f712" config-ref="Email_SMTP_Prime" toAddresses="#[p('smtp.recipients') splitBy ',']" fromAddress="${smtp.user}" subject='"StopEvent.Json - Error LOCKING Order/Route : " ++ vars.orderId ++ " in Prime System"'/>
+				
+					<logger level="INFO" doc:name="Log message" doc:id="9c1157c0-ff12-413f-a2d5-3ab70c57f2e4" message="Successfully sent email for failed event with transactionId : #[vars.transactionId]"/>
+				</on-error-continue>
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="41829b0a-36b0-4c4e-aa36-a3ed91e3d404" type="AS400:CONNECTION_FAILED, AS400:CONNECTIVITY, AS400:PROGRAM_CALL_FAILED">
+					<logger level="INFO" doc:name="Log error message" doc:id="89044f8d-1bac-484a-a510-5760da8c2e28" message="Error occured while connecting to IBM i : #[error.description] for transactionId : #[vars.transactionId] and publishing event to queue for re processing"/>
+					<jms:publish doc:name="Publish message to main queue" doc:id="2e9f362a-18ad-4289-b4da-43ba67f2b8c0" config-ref="ArtemisMQ_JMS_Config_Stop_Event" destination="${jms.stopevent.queue}">
+						<jms:message >
+							<jms:properties ><![CDATA[#[{
+	"transactionId" : vars.transactionId,
+	"messageId" : attributes.properties.userProperties.messageId
+}]]]></jms:properties>
+							<jms:jmsx-properties jmsxGroupID="#[attributes.properties.jmsxProperties.jmsxGroupID]" />
+						</jms:message>
+					</jms:publish>
+					<set-variable value="#[%dw 2.0&#10;output text/plain&#10;---&#10;&quot;Error Connecting to &quot; ++ p('as400.endpoint') ++ &quot; IBM i System&quot; ++&#10;&quot;\n\t&quot;]" doc:name="emailBody" doc:id="9ae08665-fa63-4189-b4e6-908b26040430" variableName="emailBody" />
+					<email:send doc:name="Send email" doc:id="05db7654-f22e-45ca-96c4-22bc0a578e15" config-ref="Email_SMTP_Prime" toAddresses="#[p('smtp.recipients') splitBy ',']" fromAddress="${smtp.user}" subject='#["Error connecting to Prime1 IBM i System"]'>
+						<email:body >
+							<email:content ><![CDATA[#[vars.emailBody]]]></email:content>
+						</email:body>
+					</email:send>
+					<logger level="INFO" doc:name="Log error message" doc:id="f8c2529e-0aaf-48e4-8edc-5d9e9b7ee9bd" message="Successfully published the message and sent email for transactionId : #[vars.tansactionId]"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<!-- [STUDIO:"Lock Program call processor"]		<as400:program-call-processor doc:name="Lock Program call processor" doc:id="b1155262-0134-4c77-a941-3d811c0a654d" config-ref="AS400_Config_Lockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}" target="lockPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="INOUT" parmValue='#[""]' />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="15" usage="IN" parmValue="#['StopEvent.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="INOUT" />
+			</as400:parameters>
+		</as400:program-call-processor> [STUDIO] -->
+<!-- [STUDIO:"Log message"]		<logger level="INFO" doc:name="Log message" doc:id="6711ae62-4f3c-4e85-b0c5-2d621fa4b355" message="Response from IBM i after lock program call for transactionId : #[vars.transactionId] and message :: #[vars.lockPayload]"/> [STUDIO] -->
+<!-- [STUDIO:"emailBody"]		<set-variable value='#[%dw 2.0&#10;output text/plain&#10;&#45;&#45;-&#10;"Egress" ++&#10;"\nAPI: " ++ "Lock Header" ++&#10;"\nDivision: " ++ "003" ++&#10;"\n\t"]' doc:name="emailBody" doc:id="d10b3648-e195-463a-ab91-21c8535c3d5e" variableName="emailBody" /> [STUDIO] -->
+<!-- [STUDIO:"Choice"]		<choice doc:name="Choice" doc:id="2f6fc1a9-5184-482a-b0a5-76c4bc8e14a8" >
+			<when expression='#[(vars.lockPayload.Msg == "Route not found in IMSEQ file" or vars.lockPayload.Msg == "Must pass either Order or Route to Delete Lock" or vars.lockPayload == "Order not found in ORDER file")]'>
+<logger level="INFO" doc:name="Log message" doc:id="f3554f47-7757-405e-b8d3-f1e4475dff91" message="Sending email for transacationId : #[vars.transactionId] for Stop Event Order lock with OrderNo : #[vars.lockPayload.Order] and Route : #[vars.originalPayload.routeNumber as Number] and Msg : #[vars.lockPayload.Msg]" />
+				<logger level="INFO" doc:name="Log message" doc:id="5b6a7835-f107-42e3-9347-59b29ac87183" message="Successfully sent email for transacationId : #[vars.transactionId] for Stop Event Order lock response from IBM  : #[payload]" />
+								<try doc:name="Try" doc:id="29c25f8d-5914-430d-905c-82924140eea8" >
+					<email:send doc:name="Send email" doc:id="951b9d8a-0f4c-48af-910f-aedee87be2f9" config-ref="Email_SMTP" fromAddress="${smtp.sender}" subject='#["Error LOCKING Order: " ++ vars.lockPayload.Order ++ " in Prime System"]'>
+					<email:to-addresses>
+						<email:to-address value="apanda@infoviewsystems.com" />
+					</email:to-addresses>
+					<email:cc-addresses>
+						<email:cc-address value="rraju@infoviewsystems.com" />
+					</email:cc-addresses>
+					<email:body>
+						<email:content><![CDATA[#[vars.emailBody]]]></email:content>
+					</email:body>
+				</email:send>
+					<error-handler >
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="55db4647-cd5a-42a1-8c34-f5ffbccf038c" type="ANY">
+							<logger level="ERROR" doc:name="Log error" doc:id="017a9b97-e6a0-4dd7-b7df-170d17d6162a" message="Error occured while sending email error details :: #[error.detailedDescription]"/>
+						</on-error-continue>
+					</error-handler>
+				</try>
+				<logger level="INFO" doc:name="Log message" doc:id="3f2fa5e7-3691-4f43-834f-f5d39f34cf78" message="Successfully sent email for transactionId : #[vars.transactionId]"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Log message" doc:id="869c42d4-ef32-4f3e-9fb5-b8b3bfc4ed13" message="Calling the Stop program for transactionId : #[vars.transactionId] and payload :: #[vars.originalPayload]" />
+				<as400:program-call-processor doc:name="StopProgram call processor" config-ref="AS400_Config_Stopoff" programName="${as400.stopevent.program.name}" programLibrary="${as400.library.name}" target="stopPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="StopJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+				<logger level="INFO" doc:name="Log IBM i response" doc:id="bdf5f527-74f8-4eaf-90bd-50e4230b9df3" message="Response from IBM i after calling the Stop program for transactionId : #[vars.transactionId] with message :: #[vars.stopPayload]" />
+				<logger level="INFO" doc:name="Log message" doc:id="0e71198a-84f1-437c-9c8a-1126be8df303" message="Unlocking the Stop program after successful program call for transactionId : #[vars.transactionId]"/>
+				<as400:program-call-processor doc:name="Unlock Program call processor" doc:id="def2289a-3565-4e76-b1ab-7b3a5cfe1373" config-ref="AS400_Config_Unlockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue='#[""]' />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="10" usage="IN" parmValue="#['Stop.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['D']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+				<logger level="INFO" doc:name="Log message" doc:id="b57c58d3-4692-464a-a522-05b57c9ccc08" message="Successfully unlocked the stop program for transactionId :#[vars.transactionId] and message :: #[payload]"/>
+			
+</otherwise>
+		</choice> [STUDIO] -->
+		<logger level="INFO" doc:name="Log End" message="#[flow.name] Ended"/>
+	</flow>
+	<flow name="prime-jms-ibmi-load-flow">
+		<jms:listener doc:name="On New Load Message" config-ref="ArtemisMQ_JMS_Config_Load" destination="${jms.load.queue}"/>
+		<logger level="INFO" doc:name="Log Start" message="#[flow.name] Started"/>
+		<set-variable value="#[attributes.properties.userProperties.transactionId]" doc:name="transactionId" doc:id="b5a80e99-7ad6-4470-9aaa-e50868987f86" variableName="transactionId"/>
+		<set-variable value="#[payload]" doc:name="originalPayload" doc:id="5299016b-6564-4e8e-a34e-6376c9687d77" variableName="originalPayload"/>
+		<set-payload value='#[output application/java&#10;---&#10;write(payload, "application/json") replace /([\n\t ])/ with "" as String]' doc:name="Set Json payload" doc:id="53961ea1-eab5-4f1b-b80d-36ee7b7759ff" />
+		<logger level="INFO" doc:name="Log message" message="Load event received from Artemis MQ for transactionId : #[vars.transactionId] and payload :: #[payload]" />
+		<logger level="INFO" doc:name="Log transaction" doc:id="c02e722b-0980-4fa9-a570-fca04ae28045" message="Locking the load program for transactionId : #[vars.transactionId] and payload : #[vars.originalPayload]"/>
+		<try doc:name="Try" doc:id="8d66e31c-4a44-466f-b02b-bed864718da8" >
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="ff67aa30-d322-4257-ac16-77313d16fbf0" millisBetweenRetries="5000">
+				<try doc:name="Try" doc:id="89584331-df74-42b0-9241-b9da8c2c34dd" >
+					<flow-ref doc:name="Load-lockprogramcall-subflow" doc:id="76e44c83-39c1-4778-89d1-5ede44049a55" name="load-lockpgmcall-subflow"/>
+					<choice doc:name="Choice" doc:id="d86d9870-0816-4175-a261-56e1916622cb" >
+						<when expression='#[(vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Order already Locked") &#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Error on CHAIN to IMSEQL9 file")&#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Error on CHAIN to MMBHDR file")&#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Error Writing Lock to MMBHDR file")]'>
+							<logger level="INFO" doc:name="Log message" doc:id="582d250a-352c-4cd2-a720-10a4ed2435e5" message="need to re-process the failed event for transactionId :#[vars.transactionId] and payload : #[vars.originalPayload]"/>
+							<choice doc:name="Choice" doc:id="e66016b6-414b-417a-b4e4-32d945645039" >
+								<when expression='#[vars.lockPayload.Msg == "Order already Locked"]'>
+									<raise-error doc:name="Raise error for order lock" doc:id="045e301e-e4ee-4884-9ac4-8ef5870a6fb8" type="IBMI:ORDERLOCK" description="Order already Locked"/>
+								</when>
+								<when expression='#[vars.lockPayload.Msg == "Error on CHAIN to IMSEQL9 file"]'>
+									<raise-error doc:name="Raise error chain to Imseql file" doc:id="59300a06-d854-47ed-9049-49e2a25ba552" type="IBMI:ERROR ON CHAIN IMSEQL9 FILE" description="Error on CHAIN to IMSEQL9 file"/>
+								</when>
+								<when expression='#[vars.lockPayload.Msg == "Error on CHAIN to MMBHDR file"]'>
+									<raise-error doc:name="Raise error chian to mmbhdr file" doc:id="b7384059-5c47-493e-98fa-66890ebae938" type="IBMI:ERROR ON CHAIN TO MMBHDR FILE" description="Error on CHAIN to MMBHDR file"/>
+								</when>
+								<when expression='#[vars.lockPayload.Msg == "Error Writing Lock to MMBHDR file"]'>
+									<raise-error doc:name="Raise error writing lock to mmbhdr file" doc:id="7eea3224-9134-4191-8b74-9bf732bcecea" type="IBMI:ERROR WRITING LOCK TO MMBHDR FILE" description="Error Writing Lock to MMBHDR file"/>
+								</when>
+							</choice>
+						</when>
+						<when expression='#[(vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Route not found in IMSEQ file") &#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Must pass either Order or Route to Delete Lock")&#10;or (vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Order not found in ORDER file")]'>
+							<choice doc:name="Choice" doc:id="d2252821-985d-430e-80e4-11f75132fc50">
+								<when expression='#[vars.lockPayload.Success== "N" and vars.lockPayload.Msg == "Route not found in IMSEQ file"]'>
+								<logger level="INFO" doc:name="Log message" doc:id="188e9d77-12e8-44fb-8578-54eb49f63f0f" message="publishng the failed event to error queue for transactionId : #[vars.transactionId]"/>
+									<jms:publish doc:name="Publish message to error queue" doc:id="bd8f7a33-fe82-4498-8d3b-0708c40ff7af" config-ref="ArtemisMQ_JMS_Config_Load" destination="${jms.load.error.queue}">
+					<jms:message>
+						<jms:body><![CDATA[#[vars.originalPayload]]]></jms:body>
+						<jms:properties><![CDATA[#[{
+	"transactionId" : vars.transactionId,
+	"messageId" : attributes.properties.userProperties.messageId
+}]]]></jms:properties>
+							<jms:jmsx-properties jmsxGroupID="#[attributes.properties.jmsxProperties.jmsxGroupID]" />
+					</jms:message>
+				</jms:publish>
+									<logger level="INFO" doc:name="Log message" doc:id="da0197f4-08f2-41eb-bbee-11d7938b18bc" message="Successfully published the failed event to error queue for transactionId : #[vars.transactionId]"/>
+								</when>
+								<otherwise >
+									<logger level="INFO" doc:name="Log message" doc:id="0fd66471-caac-48cf-ba4c-1a7bf214cd6c" message="continuing processing for transactionId : #[vars.transactionId]"/>
+								</otherwise>
+							</choice>
+							<logger level="INFO" doc:name="Log message" doc:id="02624520-9e0f-4e29-82b3-739cf78bd5b5" message="Sending email for transacationId : #[vars.transactionId] for Load Order lock with OrderNo : #[vars.lockPayload.Order] and Route : #[vars.originalPayload.routeNumber as Number] and Msg : #[vars.lockPayload.Msg]" />
+<!-- [STUDIO:"send email for failed events"]							<as400:program-call-processor doc:name="send email for failed events" doc:id="8b567586-406b-443e-b7e5-dfb92d88a1ac" config-ref="AS400_Config_Stopoff" programName="${as400.send.email.program.name}" programLibrary="${as400.library.name}">
+					<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue="#[vars.lockPayload.Order]" />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="15" usage="IN" parmValue="#['Load.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="INOUT" parmValue="#[vars.lockPayload.Msg]" />
+			</as400:parameters>
+				</as400:program-call-processor> [STUDIO] -->
+							<set-variable value='#[output&#10;application/json&#10;---&#10;if(vars.lockPayload.Order == null or vars.lockPayload.Order == "") vars.originalPayload.routeNumber as Number&#10; else vars.lockPayload.Order]' doc:name="orderId" doc:id="e16dfb3b-5fe6-48eb-9c2e-2e0fa8d4d28e" variableName="orderId"/>
+							<email:send doc:name="Send email" doc:id="d76ff452-3427-48e2-bd15-844ea74b44f0" config-ref="Email_SMTP_Prime" toAddresses="#[p('smtp.recipients') splitBy ',']" fromAddress="${smtp.user}" subject='"Load.Json - Error LOCKING Order/Route : " ++ vars.orderId ++ " in Prime System"'/>
+							<logger level="INFO" doc:name="Log message" doc:id="b80817e7-da4b-496f-a2ad-7427bf6efd76" message="Successfully sent email for transacationId : #[vars.transactionId] for Load Event"/>
+						</when>
+						<otherwise >
+							<logger level="INFO" doc:name="Log message" doc:id="1b03fc0c-e973-48bb-8114-193c0488f127" message="Calling the Load program for transactionId : #[vars.transactionId] and payload :: #[vars.originalPayload]"/>
+							<as400:program-call-processor doc:name="LoadProgram call processor" config-ref="AS400_Config_Load" programName="${as400.load.program.name}" programLibrary="${as400.library.name}" target="loadPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="LoadJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+				<logger level="INFO" doc:name="Log IBM i response" doc:id="73a0aa08-2353-4ebc-bf9f-2cb2a8e343dc" message="Response from IBM i after calling the Load program for transactionId : #[vars.transactionId] with message :: #[vars.loadPayload]" />
+				<logger level="INFO" doc:name="Log message" doc:id="8b666f4a-81b3-498d-a844-324e79ad07a3" message="Unlocking the Load program after successful program call for transactionId : #[vars.transactionId]"/>
+				<as400:program-call-processor doc:name="Unlock Program call processor" doc:id="48a5b3d2-1286-4482-a09d-baf2f774a80a" config-ref="AS400_Config_Unlockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue='#[""]' />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="10" usage="IN" parmValue="#['Load.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['D']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+				<logger level="INFO" doc:name="Log message" doc:id="cf9db297-79b0-46f4-bdca-3be9f9316864" message="Successfully unlocked the load program for transactionId :#[vars.transactionId] and message :: #[payload]"/>
+			
+						</otherwise>
+					</choice>
+					<error-handler >
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="00bb2f86-16d7-4779-a16b-b7d1fd5f0547" type="IBMI:ORDERLOCK,IBMI:ERROR ON CHAIN IMSEQL9 FILE,IBMI:ERROR ON CHAIN TO MMBHDR FILE,IBMI:ERROR WRITING LOCK TO MMBHDR FILE">
+							<logger level="INFO" doc:name="Log error message" doc:id="921d3013-4f13-4f93-8e71-f97d58eb083a" message="Error occured on IBM i : #[error.description] and need to do retry"/>
+						</on-error-propagate>
+						<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="0bc8894f-3763-4790-a1d3-19ab1369e82d" type="AS400:CONNECTION_FAILED, AS400:CONNECTIVITY, AS400:PROGRAM_CALL_FAILED, AS400:PROGRAM_CALL_TIMEOUT">
+							<logger level="ERROR" doc:name="Log error message" doc:id="6028a8e6-3159-4db9-a6e5-7e17f948c1fc" message="Error occured on IBM i : #[error.description] for transaction : #[vars.transactionId] and need to do retry"/>
+						</on-error-propagate>
+					</error-handler>
+				</try>
+			</until-successful>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="ba63c1b9-f77d-4e18-b1a1-1566f2749400" type="IBMI:ORDERLOCK,IBMI:ERROR ON CHAIN IMSEQL9 FILE,IBMI:ERROR ON CHAIN TO MMBHDR FILE,IBMI:ERROR WRITING LOCK TO MMBHDR FILE">
+					<logger level="INFO" doc:name="send to error queue" doc:id="b03a875e-a0a9-4a6d-8293-d0834df49773" message="Max retries exceeded for Load program call for transactionId : #[vars.transactionId] and sending it to error queue"/>
+					<jms:publish doc:name="Publish message to error queue" doc:id="9298ff05-e232-4674-b0a2-ca9c16701a60" config-ref="ArtemisMQ_JMS_Config_Load" destination="${jms.load.error.queue}">
+					<jms:message>
+						<jms:body><![CDATA[#[vars.originalPayload]]]></jms:body>
+						<jms:properties><![CDATA[#[{
+	"transactionId" : vars.transactionId,
+	"messageId" : attributes.properties.userProperties.messageId
+}]]]></jms:properties>
+							<jms:jmsx-properties jmsxGroupID="#[attributes.properties.jmsxProperties.jmsxGroupID]" />
+					</jms:message>
+				</jms:publish>
+					<logger level="INFO" doc:name="Log message" doc:id="20c8cd28-d476-46db-b691-7d06eada3149" message="sending email for the failed event with transactionId : #[vars.transactionId]"/>
+<!-- [STUDIO:"send email for failed events"]					<as400:program-call-processor doc:name="send email for failed events" doc:id="4df1b7c4-dcd0-4238-95fc-0294addbb930" programName="${as400.send.email.program.name}" programLibrary="${as400.library.name}" config-ref="AS400_Config_Load">
+					<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue="#[vars.lockPayload.Order]" />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.routeNumber as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="15" usage="IN" parmValue="#['Load.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="INOUT" parmValue="#[vars.lockPayload.Msg]" />
+			</as400:parameters>
+				</as400:program-call-processor> [STUDIO] -->
+					<set-variable value='#[if(vars.lockPayload.Order == null or vars.lockPayload.Order == "") vars.originalPayload.routeNumber as Number&#10; else vars.lockPayload.Order]' doc:name="orderId" doc:id="ab1ac3e2-2b93-4f9b-9566-9c6dc63fee63" variableName="orderId"/>
+							<email:send doc:name="Send email" doc:id="6cc9def8-090b-45b0-9206-dd24ff20d34d" config-ref="Email_SMTP_Prime" toAddresses="#[p('smtp.recipients') splitBy ',']" fromAddress="${smtp.user}" subject='"Load.Json - Error LOCKING Order/Route : " ++ vars.orderId ++ " in Prime System"'/>
+					<logger level="INFO" doc:name="Log message" doc:id="8a52008d-4ab3-4291-9b50-32a179b03462" message="Successfully sent email for failed event for transactionId : #[vars.transactionId]"/>
+				</on-error-continue>
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="a0672c3b-d1c9-40c5-b345-28ece6bcfaa8" type="AS400:CONNECTION_FAILED, AS400:CONNECTIVITY, AS400:PROGRAM_CALL_FAILED">
+				<logger level="INFO" doc:name="Log error message" doc:id="83b6cde3-a79f-49f9-a268-ee84db18234f" message="Error occured while connecting to IBM i : #[error.description] for transactionId : #[vars.transactionId] and publishing event to queue for re processing"/>
+					<jms:publish doc:name="Publish message to main queue" doc:id="d0a2c077-5cb6-4ae5-8749-0a74b60bfae1" config-ref="ArtemisMQ_JMS_Config_Load" destination="${jms.load.queue}">
+						<jms:message >
+							<jms:properties ><![CDATA[#[{
+	"transactionId" : vars.transactionId,
+	"messageId" : attributes.properties.userProperties.messageId
+}]]]></jms:properties>
+							<jms:jmsx-properties jmsxGroupID="#[attributes.properties.jmsxProperties.jmsxGroupID]" />
+						</jms:message>
+					</jms:publish>
+					<set-variable value="#[%dw 2.0&#10;output text/plain&#10;---&#10;&quot;Error Connecting to &quot; ++ p('as400.endpoint') ++ &quot; IBM i System&quot; ++&#10;&quot;\n\t&quot;]" doc:name="emailBody" doc:id="6a5b1fd6-b1cd-470d-9d86-af6dc624956a" variableName="emailBody" />
+					<email:send doc:name="Send email" doc:id="76501783-1a4b-4f01-85d0-f9f17ec88be8" config-ref="Email_SMTP_Prime" toAddresses="#[p('smtp.recipients') splitBy ',']" fromAddress="${smtp.user}" subject='#["Error connecting to Prime1 IBM i System"]'>
+						<email:body >
+							<email:content ><![CDATA[#[vars.emailBody]]]></email:content>
+						</email:body>
+					</email:send>
+					<logger level="INFO" doc:name="Log error message" doc:id="6cb51f4b-a93d-42b0-ab30-48b540745bff" message="Successfully published the message and sent email for transactionId : #[vars.tansactionId]"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+<!-- [STUDIO:"Load-lockprogramcall-subflow"]		<flow-ref doc:name="Load-lockprogramcall-subflow" doc:id="756ae65d-7603-41de-88f1-e612c629d18a" name="Load-lockprogramcall-subflow" /> [STUDIO] -->
+<!-- [STUDIO:"Log Lock Program Message "]		<logger level="INFO" doc:name="Log Lock Program Message " doc:id="2a489977-a599-4adc-86ed-4fae792bc46d" message="Response from IBM i after load lock program call for transactionId : #[vars.transactionId] and message :: #[vars.lockPayload]" /> [STUDIO] -->
+<!-- [STUDIO:"lockStatus"]		<set-variable value='#[%dw 2.0&#10;output application/json&#10;var errorStatus = if(vars.lockPayload.Success == "N" and vars.lockPayload.Msg == "Error on CHAIN to IMSEQL9 file") "Error on Chain to IMSEQL9"&#10;else if (vars.lockPayload.Success == "N" and vars.lockPayload.Msg == "Order already Locked") "Order already locked" &#10;else if (vars.lockPayload.Success == "N" and vars.lockPayload.Msg == "Error on CHAIN to MMBHDR file") "Error on CHAIN to MMBHDR" &#10;else if (vars.lockPayload.Success == "N" and vars.lockPayload.Msg == "Error Writing Lock to MMBHDR file") "Error Writing Lock to MMBHDR" else "unknown error while call"&#10;&#45;&#45;-&#10;if (errorStatus == "Error on Chain to IMSEQL9" or errorStatus == "Order already locked" or errorStatus == "Error on CHAIN to MMBHDR" or errorStatus == "Error Writing Lock to MMBHDR file") "Error" else "Active"]' doc:name="lockStatus" doc:id="c8b04f1e-4b2c-4626-90c6-e8ec1bfed64c" variableName="lockStatus"/> [STUDIO] -->
+<!-- [STUDIO:"Choice"]		<choice doc:name="Choice" doc:id="97b84866-878a-4345-a669-d5d690da996b">
+			<when expression='#[vars.lockStatus == "Error" and vars.retryCount &lt;= 3]'>
+				<logger level="INFO" doc:name="Log queue processing" doc:id="0b1925fe-bff1-441f-903e-653d45b9f57e" message="Need to publish the failed event back to queue for re-processing for transactionId :#[vars.transactionId] and payload : #[vars.originalPayload]" />
+				<jms:publish doc:name="Publish message to queue" doc:id="051245eb-6769-49bf-99b2-b2ab0d187b22" config-ref="ArtemisMQ_JMS_Config_Load" destination="${jms.load.queue}" deliveryDelay="5" deliveryDelayUnit="SECONDS">
+					<jms:message>
+						<jms:body ><![CDATA[#[vars.originalPayload]]]></jms:body>
+						<jms:properties><![CDATA[#[{
+	"retryCount" : vars.retryCount + 1,
+	"transactionId" : vars.transactionId,
+	"messageId" : attributes.properties.userProperties.messageId
+}]]]></jms:properties>
+					</jms:message>
+				</jms:publish>
+				<logger level="INFO" doc:name="Log queue processing" doc:id="081f4c47-38a9-4645-90cf-afddad039ead" message="Successfully published the failed event back to Active MQ for transactionId : #[vars.transactionId] and payload : #[vars.originalPayload]" />
+			</when>
+			<when expression='#[(vars.lockStatus == "Error" and vars.retryCount &gt; 3) or &#10;(vars.lockPayload.Msg == "Route not found in IMSEQ file" or &#10;	vars.lockPayload.Msg == "Must pass either Order or Route to Delete Lock" or &#10;	vars.lockPayload == "Order not found in ORDER file"&#10;)]'>
+				<logger level="INFO" doc:name="Log queue processing" doc:id="0a3fb81d-45f6-43c8-bbfd-3ac2ffedac06" message="Need to send email for failed event for transactionId :#[vars.transactionId] for OrderNo : #[vars.lockPayload.Order] and Route : #[vars.originalPayload.route.number as Number] and Msg : #[vars.lockPayload.Msg]"/>
+<!&#45;&#45; [STUDIO:"Publish message to error queue"]				<jms:publish doc:name="Publish message to error queue" doc:id="ff921c8f-9118-4c9b-9f82-b67d7d5e0b2f" config-ref="ArtemisMQ_JMS_Config_Load" destination="${jms.load.error.queue}">
+					<jms:message >
+						<jms:body ><![CDATA[#[vars.originalPayload]]]></jms:body>
+						<jms:properties ><![CDATA[#[{
+	"transactionId" : vars.transactionId,
+	"messageId" : attributes.properties.userProperties.messageId
+}]]]></jms:properties>
+					</jms:message>
+				</jms:publish>
+					<as400:program-call-processor doc:name="Email Program call processor" doc:id="690528b6-16d9-4138-93d9-163f2c33bb20" config-ref="AS400_Config_Load" programName="${as400.send.email.program.name}" programLibrary="${as400.library.name}">
+					<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue="#[vars.lockPayload.Order]" />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.route.number as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="15" usage="IN" parmValue="#['Load.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['A']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="INOUT" parmValue="#[vars.lockPayload.Msg]"/>
+			</as400:parameters>
+				</as400:program-call-processor>
+				<logger level="INFO" doc:name="Log queue processing" doc:id="0c506143-497f-4e36-a3d6-907e9ae0a160" message="Successfully sent email for transactionId :#[vars.transactionId] and payload : #[vars.originalPayload] and response message : #[payload]" />
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Log message" doc:id="2ef4bd90-0a7f-4090-97f2-9cbc839642b0" message="Calling the load program for transactionId : #[vars.transactionId] and payload :: #[vars.originalPayload]" />
+				<as400:program-call-processor doc:name="LoadProgram call processor" config-ref="AS400_Config_Load" programName="${as400.load.program.name}" programLibrary="${as400.library.name}" target="stopPayload">
+			<as400:parameters>
+				<as400:parameter parameterName="StopJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+				<logger level="INFO" doc:name="Log IBM i response" doc:id="971fd758-2c5c-4380-96a5-949e38f1739c" message="Response from IBM i after calling the load program for transactionId : #[vars.transactionId] with message :: #[vars.stopPayload]" />
+				<logger level="INFO" doc:name="Log message" doc:id="0d3b24bd-5749-46f6-909c-bdb7149aed59" message="Unlocking the Stop program after successful program call for transactionId : #[vars.transactionId]" />
+				<choice doc:name="Choice" doc:id="33014e5a-24a7-4ca4-a11a-4e9e9390567e">
+					<when expression="#[vars.originalPayload.order.code == null]">
+						<as400:program-call-processor doc:name="Unlock Program call processor" doc:id="2cfe7427-a7e1-44fc-92b8-f7660ec9684f" config-ref="AS400_Config_Unlockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue='#[""]' />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue="#[vars.originalPayload.route.number as Number]" />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="10" usage="IN" parmValue="#['Load.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['D']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+					</when>
+					<otherwise >
+					<as400:program-call-processor doc:name="Unlock Program call processor" doc:id="703a05ac-6ad7-47a8-800f-58873ba46994" config-ref="AS400_Config_Unlockprogram" programName="${as400.program.lock.name}" programLibrary="${as400.library.name}">
+			<as400:parameters>
+				<as400:parameter parameterName="Order" dataType="STRING" length="7" usage="IN" parmValue='#[vars.originalPayload.order.code as Number]' />
+				<as400:parameter parameterName="Route" dataType="STRING" length="15" usage="IN" parmValue='#[""]' />
+				<as400:parameter parameterName="Pgm" dataType="STRING" length="10" usage="IN" parmValue="#['Load.Json']" />
+				<as400:parameter parameterName="AddOrDel" dataType="STRING" length="1" usage="IN" parmValue="#['D']" />
+				<as400:parameter parameterName="Success" dataType="STRING" length="1" usage="OUT" />
+				<as400:parameter parameterName="Msg" dataType="STRING" length="60" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+					</otherwise>
+				</choice>
+				<logger level="INFO" doc:name="Log message" doc:id="3ddd58c0-b198-40b0-93f4-4c1ff1d9285b" message="Successfully unlocked the load program for transactionId :#[vars.transactionId] and message :: #[payload]" />
+		</otherwise>
+		</choice> [STUDIO] -->
+		<logger level="INFO" doc:name="Log End" message="#[flow.name] Ended"/>
+	</flow>
+	<flow name="prime-jms-ibmi-vendor-flow" initialState="stopped">
+		<jms:listener doc:name="On New Vendor Message" config-ref="ArtemisMQ_JMS_Config_Vendor" destination="${jms.vendor.queue}"/>
+		<logger level="INFO" doc:name="Log Start" message="#[flow.name] Started"/>
+		<set-variable value="#[payload]" doc:name="message" variableName="message"/>
+		<logger level="INFO" doc:name="Log message" message="Vendor event received from Artemis MQ :: #[payload]"/>
+		<as400:program-call-processor doc:name="Vendor Program call processor" config-ref="AS400_Config_Vendor" programName="${as400.vendor.program.name}" programLibrary="${as400.library.name}">
+			<as400:parameters >
+				<as400:parameter parameterName="VendorJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+		<logger level="INFO" doc:name="Log IBM i Response" message="Respose from IBM i for Vendor :: #[payload]"/>
+		<logger level="INFO" doc:name="Log End" message="#[flow.name] Ended"/>
+	</flow>
+	<flow name="prime-jms-ibmi-driver-assignment-flow" initialState="stopped">
+		<jms:listener doc:name="On New DriverAssignment Message" config-ref="ArtemisMQ_JMS_Config_DriverAssignment" destination="${jms.driverAssignment.queue}"/>
+		<logger level="INFO" doc:name="Log Start" message="#[flow.name] Started"/>
+		<set-variable value="#[payload]" doc:name="message" variableName="message"/>
+		<logger level="INFO" doc:name="Log message" message="Driver Assignment event received from Artemis MQ :: #[payload]"/>
+		<as400:program-call-processor doc:name="DriverAssignment Program call processor" config-ref="AS400_Config_DriverAssignment" programName="${as400.driverAssignment.program.name}" programLibrary="${as400.library.name}">
+			<as400:parameters >
+				<as400:parameter parameterName="DriverAssignmentJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+		<logger level="INFO" doc:name="Log IBM i Response" message="Respose from IBM i for DriverAssignment :: #[payload]"/>
+		<logger level="INFO" doc:name="Log End" message="#[flow.name] Ended"/>
+	</flow>
+	<flow name="prime-jms-ibmi-autotrucks-flow" initialState="stopped">
+		<jms:listener doc:name="On New Autotrucks Message" config-ref="ArtemisMQ_JMS_Config_Autotrucks" destination="${jms.autotrucks.queue}"/>
+		<logger level="INFO" doc:name="Log Start" message="#[flow.name] Started"/>
+		<set-variable value="#[payload]" doc:name="message" variableName="message"/>
+		<logger level="INFO" doc:name="Log message" message="Autotrucks event received from Artemis MQ :: #[payload]"/>
+		<as400:program-call-processor doc:name="Autotrucks Program call processor" config-ref="AS400_Config_AutoTrucks" programName="${as400.autotrucks.program.name}" programLibrary="${as400.library.name}">
+			<as400:parameters >
+				<as400:parameter parameterName="AutotrucksJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+		<logger level="INFO" doc:name="Log IBM i Response" message="Respose from IBM i for Autotrucks :: #[payload]"/>
+		<logger level="INFO" doc:name="Log End" message="#[flow.name] Ended"/>
+	</flow>
+	<flow name="prime-jms-ibmi-sendtrucks-flow" initialState="stopped">
+		<jms:listener doc:name="On New Sendtucks Message" config-ref="ArtemisMQ_JMS_Config_Sendtrucks" destination="${jms.sendtrucks.queue}"/>
+		<logger level="INFO" doc:name="Log Start" message="#[flow.name] Started"/>
+		<set-variable value="#[payload]" doc:name="message" variableName="message"/>
+		<logger level="INFO" doc:name="Log message" message="Autotrucks event received from Artemis MQ :: #[payload]"/>
+		<as400:program-call-processor doc:name="Sendtrucks Program call processor" config-ref="AS400_Config_SendTrucks" programName="${as400.sendtrucks.program.name}" programLibrary="${as400.library.name}">
+			<as400:parameters >
+				<as400:parameter parameterName="SendtrucksJson" dataType="STRING" length="32000" usage="IN" parmValue="#[payload]">
+				</as400:parameter>
+				<as400:parameter parameterName="returnStatus" dataType="STRING" length="10" usage="OUT" />
+			</as400:parameters>
+		</as400:program-call-processor>
+		<logger level="INFO" doc:name="Log IBM i Response" message="Respose from IBM i for Autotrucks :: #[payload]"/>
+		<logger level="INFO" doc:name="Log End" message="#[flow.name] Ended"/>
+	</flow>
+</mule>

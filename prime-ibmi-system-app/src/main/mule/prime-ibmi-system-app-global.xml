@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns:as400="http://www.mulesoft.org/schema/mule/as400"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd 
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/as400 http://www.mulesoft.org/schema/mule/as400/current/mule-as400.xsd">
+	<as400:config name="AS400_Config_Employee" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}" >
+			<pooling-profile maxActive="10" maxIdle="10" exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000"/>
+		</as400:config-connection>
+	</as400:config>
+	<as400:config name="AS400_Config_Stopoff" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}">
+			<pooling-profile exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000" maxActive="10" maxIdle="10"/>
+		</as400:config-connection>
+	</as400:config>
+	<as400:config name="AS400_Config_Load" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}">
+			<pooling-profile exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000" maxActive="10" maxIdle="10"/>
+		</as400:config-connection>
+	</as400:config>
+	<as400:config name="AS400_Config_Vendor" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}">
+			<pooling-profile exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000" maxActive="10" maxIdle="10"/>
+		</as400:config-connection>
+	</as400:config>
+	<as400:config name="AS400_Config_DriverAssignment" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}">
+			<pooling-profile exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000" maxActive="10" maxIdle="10"/>
+		</as400:config-connection>
+	</as400:config>
+	<as400:config name="AS400_Config_AutoTrucks" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}">
+			<pooling-profile exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000" maxActive="10" maxIdle="10"/>
+		</as400:config-connection>
+	</as400:config>
+	<as400:config name="AS400_Config_SendTrucks" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}">
+			<pooling-profile exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000" maxActive="10" maxIdle="10"/>
+		</as400:config-connection>
+	</as400:config>
+	<as400:config name="AS400_Config_Lockprogram" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}">
+			<pooling-profile exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000" maxActive="10" maxIdle="10"/>
+		</as400:config-connection>
+	</as400:config>
+	<as400:config name="AS400_Config_Unlockprogram" doc:name="AS400 Config" >
+		<as400:config-connection endpoint="${as400.endpoint}" userid="${as400.user}" password="${as400.pwd}">
+			<pooling-profile exhaustedAction="WHEN_EXHAUSTED_WAIT" maxWait="1000" maxActive="10" maxIdle="10"/>
+		</as400:config-connection>
+	</as400:config>
+	<jms:config name="ArtemisMQ_JMS_Config_Employee" doc:name="JMS Config" encoding="UTF-8" contentType="application/json">
+		<jms:generic-connection specification="JMS_2_0" username="${jms.broker.username}" password="${jms.broker.password}">
+			<reconnection failsDeployment="true">
+				<reconnect-forever frequency="3000" />
+			</reconnection>
+			<jms:caching-strategy >
+				<jms:default-caching sessionCacheSize="10" />
+			</jms:caching-strategy>
+			<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
+					<jms:custom-jndi-name-resolver >
+						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+					</jms:custom-jndi-name-resolver>
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			<jms:xa-connection-pool minPoolSize="5" maxPoolSize="10" maxIdleSeconds="10" />
+		</jms:generic-connection>
+		<jms:consumer-config selector="JMSType = 'EMPLOYEE'"/>
+		<jms:producer-config jmsType="EMPLOYEE" persistentDelivery="true"/>
+	</jms:config>
+	<jms:config name="ArtemisMQ_JMS_Config_Stop_Event" doc:name="JMS Config" encoding="UTF-8" contentType="application/json">
+		<jms:generic-connection specification="JMS_2_0" username="${jms.broker.username}" password="${jms.broker.password}">
+			<reconnection failsDeployment="true">
+				<reconnect-forever frequency="3000" />
+			</reconnection>
+			<jms:caching-strategy >
+				<jms:default-caching sessionCacheSize="10" />
+			</jms:caching-strategy>
+			<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
+					<jms:custom-jndi-name-resolver >
+						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+					</jms:custom-jndi-name-resolver>
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			<jms:xa-connection-pool minPoolSize="5" maxPoolSize="10" maxIdleSeconds="10" />
+		</jms:generic-connection>
+		<jms:consumer-config selector="JMSType = 'STOPEVENT'"/>
+		<jms:producer-config persistentDelivery="true" jmsType="STOPEVENT" />
+	</jms:config>
+	<jms:config name="ArtemisMQ_JMS_Config_Load" doc:name="JMS Config" encoding="UTF-8" contentType="application/json">
+		<jms:generic-connection specification="JMS_2_0" username="${jms.broker.username}" password="${jms.broker.password}">
+			<reconnection failsDeployment="true">
+				<reconnect-forever frequency="3000" />
+			</reconnection>
+			<jms:caching-strategy >
+				<jms:default-caching sessionCacheSize="10" />
+			</jms:caching-strategy>
+			<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
+					<jms:custom-jndi-name-resolver >
+						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+					</jms:custom-jndi-name-resolver>
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			<jms:xa-connection-pool minPoolSize="5" maxPoolSize="10" maxIdleSeconds="10" />
+		</jms:generic-connection>
+		<jms:consumer-config selector="JMSType = 'LOAD'"/>
+		<jms:producer-config jmsType="LOAD" persistentDelivery="true"/>
+	</jms:config>
+	
+	<jms:config name="ArtemisMQ_JMS_Config_Vendor" doc:name="JMS Config" encoding="UTF-8" contentType="application/json">
+		<jms:generic-connection specification="JMS_2_0" username="${jms.broker.username}" password="${jms.broker.password}">
+			<reconnection failsDeployment="true">
+				<reconnect-forever frequency="3000" />
+			</reconnection>
+			<jms:caching-strategy >
+				<jms:default-caching sessionCacheSize="10" />
+			</jms:caching-strategy>
+			<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
+					<jms:custom-jndi-name-resolver >
+						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+					</jms:custom-jndi-name-resolver>
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			<jms:xa-connection-pool minPoolSize="5" maxPoolSize="10" maxIdleSeconds="10" />
+		</jms:generic-connection>
+		<jms:consumer-config selector="JMSType = 'VENDOR'" ackMode="IMMEDIATE"/>
+	</jms:config>
+	<jms:config name="ArtemisMQ_JMS_Config_DriverAssignment" doc:name="JMS Config" encoding="UTF-8" contentType="application/json">
+		<jms:generic-connection specification="JMS_2_0" username="${jms.broker.username}" password="${jms.broker.password}">
+			<reconnection failsDeployment="true">
+				<reconnect-forever frequency="3000" />
+			</reconnection>
+			<jms:caching-strategy >
+				<jms:default-caching sessionCacheSize="10" />
+			</jms:caching-strategy>
+			<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
+					<jms:custom-jndi-name-resolver >
+						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+					</jms:custom-jndi-name-resolver>
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			<jms:xa-connection-pool minPoolSize="5" maxPoolSize="10" maxIdleSeconds="10" />
+		</jms:generic-connection>
+		<jms:consumer-config selector="JMSType = 'DRIVER_ASSIGNMENT'" ackMode="IMMEDIATE"/>
+	</jms:config>
+	<jms:config name="ArtemisMQ_JMS_Config_Autotrucks" doc:name="JMS Config" encoding="UTF-8" contentType="application/json">
+		<jms:generic-connection specification="JMS_2_0" username="${jms.broker.username}" password="${jms.broker.password}">
+			<reconnection failsDeployment="true">
+				<reconnect-forever frequency="3000" />
+			</reconnection>
+			<jms:caching-strategy >
+				<jms:default-caching sessionCacheSize="10" />
+			</jms:caching-strategy>
+			<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
+					<jms:custom-jndi-name-resolver >
+						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+					</jms:custom-jndi-name-resolver>
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			<jms:xa-connection-pool minPoolSize="5" maxPoolSize="10" maxIdleSeconds="10" />
+		</jms:generic-connection>
+		<jms:consumer-config selector="JMSType = 'AUTOTRUCKS'" ackMode="IMMEDIATE"/>
+	</jms:config>
+	<jms:config name="ArtemisMQ_JMS_Config_Sendtrucks" doc:name="JMS Config" encoding="UTF-8" contentType="application/json">
+		<jms:generic-connection specification="JMS_2_0" username="${jms.broker.username}" password="${jms.broker.password}">
+			<reconnection failsDeployment="true">
+				<reconnect-forever frequency="3000" />
+			</reconnection>
+			<jms:caching-strategy >
+				<jms:default-caching sessionCacheSize="10" />
+			</jms:caching-strategy>
+			<jms:connection-factory >
+				<jms:jndi-connection-factory connectionFactoryJndiName="ConnectionFactory">
+					<jms:custom-jndi-name-resolver >
+						<jms:cached-jndi-name-resolver jndiProviderUrl="${jms.broker.url}?sslEnabled=true&amp;trustStorePath=${jms.truststore.name}&amp;trustStorePassword=${jms.truststore.password}" jndiInitialFactory="org.apache.activemq.artemis.jndi.ActiveMQInitialContextFactory"/>
+					</jms:custom-jndi-name-resolver>
+				</jms:jndi-connection-factory>
+			</jms:connection-factory>
+			<jms:xa-connection-pool minPoolSize="5" maxPoolSize="10" maxIdleSeconds="10" />
+		</jms:generic-connection>
+		<jms:consumer-config selector="JMSType = 'SENDTRUCKS'" ackMode="IMMEDIATE"/>
+	</jms:config>
+	<configuration-properties doc:name="Configuration properties" file="prime-ibmi-system-app.dev.properties" />
+	<email:smtp-config name="Email_SMTP_Prime" doc:name="Email SMTP" doc:id="861ec99b-1040-45c4-a37b-155f32f2f40a" >
+		<email:smtp-connection host="${smtp.host}" port="${smtp.port}" user="${smtp.user}" password="${smtp.pwd}">
+		</email:smtp-connection>
+	</email:smtp-config>
+</mule>
