@@ -1,0 +1,30 @@
+{
+  "configs": [
+    "prime-ibmi-system-app.xml",
+    "prime-ibmi-system-app-global.xml"
+  ],
+  "secureProperties": [],
+  "redeploymentEnabled": true,
+  "name": "com.mycompany:prime-ibmi-system-app:1.0.0-SNAPSHOT",
+  "minMuleVersion": "4.4.0",
+  "requiredProduct": "MULE",
+  "classLoaderModelLoaderDescriptor": {
+    "id": "mule",
+    "attributes": {
+      "exportedPackages": [],
+      "exportedResources": [
+        "application-types.xml",
+        "as400-license.lic",
+        "log4j2.xml",
+        "prime-ibmi-system-app-global.xml",
+        "prime-ibmi-system-app.dev.properties",
+        "prime-ibmi-system-app.xml",
+        "server-ca-truststore.p12"
+      ]
+    }
+  },
+  "bundleDescriptorLoader": {
+    "id": "mule",
+    "attributes": {}
+  }
+}
